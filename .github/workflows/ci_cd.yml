@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]   # triggers whenever you push to main
+    branches: [ "master" ]   # triggers whenever you push to master
   pull_request:
-    branches: [ "main" ]   # triggers on pull requests to main
+    branches: [ "master" ]   # triggers on pull requests to master
 
 jobs:
   build-and-test:
