@@ -1,64 +1,46 @@
 import os
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify
-import torch
-import torchvision.transforms as T
-from PIL import Image
+from transformers import pipeline
 
-# Load environment variables from .env
-load_dotenv()
+# 1) Load variables from .env into environment
+load_dotenv()  
 
-app = Flask(__name__)
-
+# 2) Retrieve variables using os.getenv(...)
 SECRET_KEY = os.getenv("SECRET_KEY")
-API_KEY = os.getenv("API_KEY")
+DB_USER    = os.getenv("DB_USER")
+DB_PASS    = os.getenv("DB_PASSWORD")
 
-# Suppose we have a segmentation model loaded here
-# For demonstration, let's load a trivial model or a placeholder
-# (Replace with your real segmentation model initialization)
-model = None  # you would load your actual model here
+# 3) Initialize Flask app
+app = Flask(__name__)
+app.config['SECRET_KEY'] = SECRET_KEY  # for session or other usage
 
-@app.route('/secret', methods=['GET'])
-def get_secret():
-    """
-    Endpoint to verify secret injection works.
-    It simply returns the SECRET_KEY environment variable (for demonstration).
-    In production, you wouldn't typically expose your secrets in an endpoint!
-    """
-    return jsonify({"secret_key": SECRET_KEY, "api_key": API_KEY})
+# 4) Example: If you want to see them, do NOT do this in production
+# print("Debug -> SECRET_KEY:", SECRET_KEY)
+# print("Debug -> DB_USER:", DB_USER, "DB_PASS:", DB_PASS)
+
+# 5) Example pipeline code (as before)
+model = pipeline("sentiment-analysis")
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """
-    Example endpoint that receives an image and returns segmentation predictions.
-    """
-    if not model:
-        return jsonify({"error": "Model not loaded"}), 500
+    data = request.json
+    text = data.get("text", "")
 
-    # Assume the request contains an image file
-    if 'image' not in request.files:
-        return jsonify({"error": "No image file provided"}), 400
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
 
-    img_file = request.files['image']
-    image = Image.open(img_file)
+    prediction = model(text)
+    return jsonify(prediction)
 
-    # Preprocess image (transforms, etc.)
-    transform = T.Compose([
-        T.Resize((256, 256)),
-        T.ToTensor()
-    ])
-    image_tensor = transform(image).unsqueeze(0)
-
-    # Run inference
-    with torch.no_grad():
-        prediction = model(image_tensor)
-    
-    # Convert prediction to a simple JSON response, e.g., predicted mask
-    # This is a placeholder
-    predicted_mask = prediction.argmax(dim=1).cpu().numpy().tolist()
-
-    return jsonify({"predicted_mask": predicted_mask})
+# 6) Optional: demonstration route to confirm secrets injection
+@app.route('/info', methods=['GET'])
+def info():
+    return jsonify({
+        "secret_key_used_by_flask": app.config['SECRET_KEY'],
+        "db_user": DB_USER  # do not reveal actual secrets in production
+    })
 
 if __name__ == '__main__':
-    # Use 0.0.0.0 to run inside container
+    # 7) Run your Flask app
     app.run(host='0.0.0.0', port=5000)
